@@ -36,7 +36,6 @@ class MainActivity : AppCompatActivity() {
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        requestStoragePermission()
         webView = WebView(this)
         setContentView(webView)
         webView.settings.apply {
@@ -59,6 +58,9 @@ class MainActivity : AppCompatActivity() {
             }
         }
         webView.loadUrl("file:///android_asset/web/index.html")
+        // Pedir el permiso de vídeo ya con la actividad en marcha, no en onCreate,
+        // para no lanzar el selector de permisos antes de que la actividad esté lista.
+        webView.post { requestStoragePermission() }
     }
 
     private fun requestStoragePermission() {
