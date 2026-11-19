@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OPENSHORTS ULTRA — Clips offline</title>
+<link rel="manifest" href="manifest.json"><link rel="stylesheet" href="styles.css">
+<meta name="theme-color" content="#000000"></head>
+<body>
+<header><div><h1>OPENSHORTS ULTRA</h1><small>Clips verticales • 100% local • Sin créditos • Sin marca de agua</small></div><span class="badge" id="netBadge">OFFLINE LISTO</span></header>
+<main>
+<div class="notice"><b>Honesto por diseño:</b> la puntuación viral es una <b>heurística local</b> (energía de audio + cambios de escena + palabras), no Gemini. La transcripción automática depende de tu navegador y en muchos móviles necesita red; si no, usa el modo manual. La exportación es <b>WebM</b> (el navegador no produce MP4). Lo que necesita internet/API está etiquetado y no se simula.</div>
+
+<section class="view active" id="view-clips">
+<div class="card"><h2>1 · Importar vídeo</h2>
+<label>Vídeo local (MP4 / WebM)</label><input type="file" id="fileInput" accept="video/*">
+<video id="video" controls playsinline></video>
+<div id="videoInfo">Sin vídeo cargado.</div>
+<div class="row"><div><label>Idioma del audio</label><select id="langSel"><option value="es-ES">Español</option><option value="en-US">Inglés</option><option value="zh-CN">Chino simplificado</option><option value="zh-TW">Chino tradicional</option><option value="pt-BR">Portugués</option><option value="fr-FR">Francés</option><option value="de-DE">Alemán</option><option value="it-IT">Italiano</option></select></div>
+<div><label>N.º de clips (3–15)</label><input type="number" id="clipCount" min="3" max="15" value="5"></div>
+<div><label>Duración mín. / máx. (s)</label><div class="row"><input type="number" id="clipMin" min="15" max="60" value="15"><input type="number" id="clipMax" min="15" max="60" value="60"></div></div></div>
+<button id="btnDetect">Detectar escenas y sugerir clips</button>
+<button class="secondary" id="btnSaveProject">Guardar proyecto</button>
+<div class="progress"><div id="progBar"></div></div><div id="progText"></div></div>
+<div class="card"><h2>2 · Clips sugeridos</h2><div id="clipList"><p class="muted">Importa un vídeo y pulsa "Detectar escenas".</p></div>
+<h3>Escenas detectadas</h3><div id="sceneList">—</div></div>
+</section>
+
+<section class="view" id="view-editor">
+<div class="card"><h2>Editor</h2><canvas class="preview" id="previewCanvas"></canvas>
+<div class="row"><div><label>Inicio (s)</label><input type="range" id="trimStart" min="0" max="10" step="0.1" value="0"><span id="trimStartVal">0 s</span></div>
+<div><label>Fin (s)</label><input type="range" id="trimEnd" min="0" max="10" step="0.1" value="10"><span id="trimEndVal">10 s</span></div></div>
+<div class="row"><div><label>Velocidad</label><select id="speedSel"><option value="0.5">0.5×</option><option value="0.75">0.75×</option><option value="1" selected>1×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="2">2×</option></select></div>
+<div><label>Rotación</label><select id="rotSel"><option value="0">0°</option><option value="90">90°</option><option value="180">180°</option><option value="270">270°</option></select></div>
+<div><label>Filtro</label><select id="filterSel"><option value="none">Sin filtro</option><option value="grayscale(1)">Blanco y negro</option><option value="sepia(1)">Sepia</option><option value="contrast(1.3) saturate(1.4)">Vivo</option><option value="brightness(1.2)">Brillo</option></select></div>
+<div><label>Volumen</label><input type="range" id="volRange" min="0" max="1" step="0.05" value="1"></div></div>
+<div class="row"><div><label>Formato</label><select id="fmtSel"><option value="9:16">Vertical 9:16</option><option value="16:9">Horizontal 16:9</option><option value="1:1">Cuadrado 1:1</option></select></div>
+<div><label>Encuadre</label><select id="layoutSel"><option value="single">Una persona / general</option><option value="split">Dos personas (dividido)</option></select></div>
+<div><label><input type="checkbox" id="blurBg"> Fondo desenfocado</label></div></div>
+<div id="faceNote"></div>
+<button id="btnPreview">Actualizar vista previa</button>
+<button id="btnExport">Exportar clip (WebM)</button>
+<button class="secondary" id="btnExportAll">Exportar todos los clips (lote)</button>
+<div class="progress"><div id="expBar"></div></div><div id="expText"></div></div>
+</section>
+
+<section class="view" id="view-subs">
+<div class="card"><h2>Subtítulos automáticos</h2>
+<div class="notice">Transcripción: <b id="transcStatus">sin iniciar</b>. Si tu navegador no trae reconocimiento de voz o necesita red y estás offline, usa el modo manual de abajo. Los tiempos del modo manual son <b>aproximados</b>, no de Whisper.</div>
+<button id="btnTranscribe">Transcribir mientras se reproduce</button>
+<button class="secondary" id="btnStopTranscribe">Detener</button>
+<label>Texto manual (se reparte entre inicio y fin del clip)</label>
+<textarea id="manualText" rows="3" placeholder="Pega aquí el texto que se dice en el clip…"></textarea>
+<button class="secondary" id="btnManualSubs">Crear subtítulos desde texto manual</button>
+<div class="row"><div><label>Color</label><input type="color" id="subColor" value="#00ff88"></div>
+<div><label>Tamaño</label><input type="number" id="subSize" value="42" min="20" max="80"></div>
+<div><label>Fuente</label><select id="subFont"><option>Arial</option><option>Verdana</option><option>Georgia</option></select></div></div>
+<table><thead><tr><th>Inicio</th><th>Fin</th><th>Texto</th><th></th></tr></thead><tbody id="subTable"></tbody></table>
+<button class="secondary" id="btnSRT">Descargar SRT</button>
+<button class="secondary" id="btnVTT">Descargar VTT</button></div>
+</section>
+
+<section class="view" id="view-dub">
+<div class="card"><h2>Doblaje y narración</h2>
+<div class="notice">Doblaje con <b>voces del dispositivo</b> (offline si la voz está instalada). No es ElevenLabs ni clonación. La clonación de voz solo con ElevenLabs + internet + autorización del propietario.</div>
+<label>Texto a doblar / narrar (en español)</label><textarea id="dubText" rows="4" placeholder="Escribe o pega el texto doblado…"></textarea>
+<div class="row"><div><label>Voz</label><select id="voiceSel"></select></div>
+<div><label>Velocidad</label><input type="range" id="dubRate" min="0.5" max="1.5" step="0.1" value="1"></div>
+<div><label>Tono</label><input type="range" id="dubPitch" min="0.5" max="1.5" step="0.1" value="1"></div></div>
+<button id="btnSpeak">Escuchar doblaje</button>
+<button class="secondary" id="btnTranslate">Traducir al español (traductor del navegador, si existe)</button>
+<div id="transNote"></div>
+<label>Traducir desde</label><select id="transFrom"><option value="zh">Chino</option><option value="en">Inglés</option><option value="pt">Portugués</option><option value="fr">Francés</option></select>
+</div></section>
+
+<section class="view" id="view-studio">
+<div class="card"><h2>YouTube Studio (local)</h2>
+<div class="notice">Títulos y hashtags generados <b>localmente</b> desde las palabras clave de tu transcripción. No es Gemini y no publica en YouTube (eso requiere OAuth + internet).</div>
+<button id="btnStudio">Generar títulos, descripción y hashtags</button>
+<h3>Títulos virales</h3><ol id="titleList"></ol>
+<h3>Descripción</h3><textarea id="descOut" rows="4"></textarea>
+<h3>Hashtags</h3><div id="hashOut"></div>
+<h3>Capítulos</h3><pre id="chaptersOut">—</pre>
+<h3>Miniatura</h3><canvas id="thumbCanvas" width="1280" height="720" style="width:100%"></canvas>
+<button class="secondary" id="btnThumb">Generar miniatura y descargar PNG</button></div>
+<div class="card"><h2>Generador UGC</h2>
+<div class="notice"><b>Sin actor IA offline:</b> esto genera el guion. El vídeo con actor, lip-sync y B-roll IA requiere internet + fal.ai / ElevenLabs y no se simula.</div>
+<label>Producto</label><input id="ugcProduct" placeholder="Ej. licuadora portátil">
+<label>Beneficio principal</label><input id="ugcBenefit" placeholder="Ej. hacer batidos en 30 segundos">
+<label>Público</label><input id="ugcAudience" placeholder="Ej. deportistas">
+<button id="btnUGC">Generar guion UGC</button><pre id="ugcOut">—</pre>
+<button class="secondary" id="btnUGCNarrate">Escuchar narración del guion</button></div>
+</section>
+
+<section class="view" id="view-projects">
+<div class="card"><h2>Proyectos e historial</h2><div id="projectList">Cargando…</div>
+<h3>Administrador de archivos</h3><p>Los proyectos se guardan en IndexedDB en este dispositivo. El vídeo se guarda si cabe (móviles: mejor vídeos cortos); si no cabe, se guardan los ajustes y la transcripción y tendrás que reimportar el vídeo.</p>
+<button class="secondary" id="btnRefreshProjects">Actualizar lista</button></div>
+</section>
+
+<section class="view" id="view-settings">
+<div class="card"><h2>Configuración avanzada</h2>
+<label>Idioma de la interfaz</label><select id="uiLang"><option value="es">Español</option><option value="en">English</option></select>
+<label>Umbral de cambio de escena (0.1–0.5)</label><input type="number" id="sceneThreshold" min="0.1" max="0.5" step="0.05" value="0.25">
+<h3>Proveedores externos (opcional, con internet)</h3>
+<label>Gemini / LLM local (URL base, ej. http://localhost:11434/v1)</label><input id="llmUrl" placeholder="Vacío = no usar">
+<label>ElevenLabs API key (doblaje/clonación, con autorización)</label><input id="elevenKey" type="password" placeholder="Vacío = no usar">
+<label>fal.ai API key (actor IA UGC)</label><input id="falKey" type="password" placeholder="Vacío = no usar">
+<button id="btnSaveSettings">Guardar configuración</button><div id="settingsMsg"></div>
+<p>Sin claves, esas funciones muestran un aviso y no hacen nada. Las claves se guardan solo en este dispositivo (localStorage).</p></div>
+</section>
+</main>
+<nav>
+<button data-view="view-clips" class="active">Clips</button>
+<button data-view="view-editor">Editor</button>
+<button data-view="view-subs">Subtítulos</button>
+<button data-view="view-dub">Doblaje</button>
+<button data-view="view-studio">Studio</button>
+<button data-view="view-projects">Proyectos</button>
+<button data-view="view-settings">Ajustes</button>
+</nav>
+<script src="../storage/db.js"></script><script src="../export/srt.js"></script>
+<script src="../ai/score.js"></script><script src="../engine/scene.js"></script><script src="../engine/clips.js"></script>
+<script src="../engine/reframe.js"></script><script src="../ai/transcribe.js"></script><script src="../ai/tts.js"></script>
+<script src="../ai/translate.js"></script><script src="../ai/youtube.js"></script><script src="../ai/ugc.js"></script>
+<script src="../engine/editor.js"></script><script src="../engine/exporter.js"></script>
+<script>
+'use strict';
+var S={file:null,fileName:'',duration:0,scenes:[],energy:[],clips:[],selected:null,subs:[],transcript:'',face:null,settings:OSU.storage.getSettings()};
+var $=function(id){return document.getElementById(id)};
+function setProg(p,t){$('progBar').style.width=p+'%';$('progText').textContent=t||'';}
+function state(){return{start:+$('trimStart').value,end:+$('trimEnd').value,speed:+$('speedSel').value,rotate:+$('rotSel').value,filter:$('filterSel').value,volume:+$('volRange').value,format:$('fmtSel').value,layout:$('layoutSel').value,blurBg:$('blurBg').checked,subStyle:{color:$('subColor').value,size:+$('subSize').value,font:$('subFont').value}};}
+function renderSubs(){ $('subTable').innerHTML=S.subs.map(function(s,i){return '<tr><td>'+s.start.toFixed(1)+'</td><td>'+s.end.toFixed(1)+'</td><td><input value="'+s.text.replace(/"/g,'&quot;')+'" data-i="'+i+'"></td><td><button class="danger" data-del="'+i+'">×</button></td></tr>';}).join(''); }
+document.querySelectorAll('nav button').forEach(function(b){b.onclick=function(){document.querySelectorAll('nav button').forEach(function(x){x.classList.remove('active')});b.classList.add('active');document.querySelectorAll('section.view').forEach(function(v){v.classList.remove('active')});$(b.dataset.view).classList.add('active');if(b.dataset.view==='view-projects')refreshProjects();};});
+$('fileInput').onchange=function(e){var f=e.target.files[0];if(!f)return;S.file=f;S.fileName=f.name;var v=$('video');v.src=URL.createObjectURL(f);v.onloadedmetadata=function(){S.duration=v.duration;$('videoInfo').textContent=f.name+' — '+v.duration.toFixed(1)+' s — '+v.videoWidth+'×'+v.videoHeight;$('trimStart').max=v.duration;$('trimEnd').max=v.duration;$('trimEnd').value=v.duration;$('trimEndVal').textContent=v.duration.toFixed(1)+' s';};};
+$('trimStart').oninput=function(){$('trimStartVal').textContent=(+$('trimStart').value).toFixed(1)+' s';};
+$('trimEnd').oninput=function(){$('trimEndVal').textContent=(+$('trimEnd').value).toFixed(1)+' s';};
+function refreshFaceNote(){$('faceNote').innerHTML=OSU.reframe.faceSupported?'Detección facial del navegador: <b>disponible</b>.':'Detección facial: <b>no disponible en este navegador</b> — se usa recorte centrado.';}
+refreshFaceNote();
+$('btnDetect').onclick=function(){var v=$('video');if(!v.src){alert('Importa primero un vídeo.');return;}
+setProg(5,'Analizando audio (energía RMS)…');
+var reader=new FileReader();
+reader.onload=function(){OSU.score.rmsPerSecond(reader.result).then(function(energy){S.energy=energy;setProg(20,'Detectando escenas por fotogramas…');return OSU.scene.detectScenes(v,{threshold:+$('sceneThreshold').value||0.25},function(p){setProg(20+p*0.7,'Detectando escenas… '+p+'%');});}).then(function(scenes){S.scenes=scenes;var words=S.transcript?S.transcript.split(/\s+/).length:0;S.clips=OSU.clips.suggestClips(scenes,S.duration,S.energy,words,{count:+$('clipCount').value||5,minDur:+$('clipMin').value||15,maxDur:+$('clipMax').value||60});setProg(100,'Listo: '+scenes.length+' escenas, '+S.clips.length+' clips.');$('sceneList').textContent=scenes.map(function(t){return t.toFixed(1)+'s';}).join(', ');$('clipList').innerHTML=S.clips.map(function(c,i){return '<div class="clip"><b>Clip '+(i+1)+'</b> — '+c.start+'–'+c.end+' s ('+c.duration+' s) · <span class="score">Puntuación viral (heurística): '+c.score+'/100</span><br><small>Energía '+c.detail.energy+' · Escenas '+c.detail.sceneDensity+' · Palabras '+c.detail.wordDensity+'</small><br><button data-clip="'+i+'">Usar en editor</button></div>';}).join('')||'<p>No se encontraron clips con esos límites. Prueba duración mínima menor.</p>';document.querySelectorAll('[data-clip]').forEach(function(b){b.onclick=function(){var c=S.clips[+b.dataset.clip];S.selected=c;$('trimStart').value=c.start;$('trimEnd').value=c.end;$('trimStartVal').textContent=c.start+' s';$('trimEndVal').textContent=c.end+' s';document.querySelector('[data-view="view-editor"]').click();$('btnPreview').click();};});}).catch(function(err){setProg(0,'Error: '+err.message);});};
+reader.readAsArrayBuffer(S.file);};
+$('btnPreview').onclick=function(){var v=$('video');if(!v.src)return;var c=$('previewCanvas');OSU.reframe.detectFace(c).then(function(f){S.face=f;});OSU.editor.drawFrame(c,v,state(),S.face);var seg=S.subs.find(function(s){return v.currentTime>=s.start&&v.currentTime<=s.end;});if(seg)OSU.editor.drawSubtitle(c,seg.text,state().subStyle);};
+$('btnExport').onclick=function(){var v=$('video');if(!v.src)return;var st=state();if(st.end<=st.start){alert('El fin debe ser mayor que el inicio.');return;}$('expText').textContent='Exportando…';OSU.exporter.exportClip(v,st,S.subs,function(p){$('expBar').style.width=p+'%';}).then(function(blob){OSU.exporter.downloadBlob(blob,(S.fileName||'clip').replace(/\.[^.]+$/,'')+'_clip_'+st.start+'-'+st.end+'.webm');$('expText').textContent='Exportado: WebM '+ (blob.size/1048576).toFixed(1) +' MB.';}).catch(function(e){$('expText').textContent='Error al exportar: '+e.message;});};
+$('btnExportAll').onclick=function(){if(!S.clips.length){alert('Primero detecta clips.');return;}var v=$('video'),i=0;$('expText').textContent='Exportando lote…';function next(){if(i>=S.clips.length){$('expText').textContent='Lote terminado: '+S.clips.length+' clips.';return;}var c=S.clips[i];var st=state();st.start=c.start;st.end=c.end;OSU.exporter.exportClip(v,st,S.subs,function(p){$('expBar').style.width=p+'%';$('expText').textContent='Clip '+(i+1)+'/'+S.clips.length+' — '+p+'%';}).then(function(blob){OSU.exporter.downloadBlob(blob,'clip_'+(i+1)+'_'+c.start+'-'+c.end+'.webm');i++;next();}).catch(function(e){$('expText').textContent='Error en clip '+(i+1)+': '+e.message;});}next();};
+$('btnTranscribe').onclick=function(){var v=$('video');if(!v.src){alert('Importa un vídeo.');return;}if(!OSU.transcribe.supported()){$('transcStatus').textContent='Este navegador no trae reconocimiento de voz. Usa el modo manual.';return;}$('transcStatus').textContent='Escuchando… (en Chrome Android puede necesitar red)';v.play();OSU.transcribe.transcribeLive(v,$('langSel').value,function(txt,t){S.transcript+=txt+' ';},function(m){$('transcStatus').textContent=m;}).then(function(txt){S.transcript=(S.transcript+' '+txt).trim();$('transcStatus').textContent='Transcripción terminada ('+S.transcript.split(/\s+/).length+' palabras).';S.subs=OSU.transcribe.wordsToSegments(S.transcript,+$('trimStart').value,+$('trimEnd').value);renderSubs();}).catch(function(e){$('transcStatus').textContent='No se pudo transcribir: '+e.message+' Usa el modo manual.';});};
+$('btnStopTranscribe').onclick=function(){OSU.transcribe.stopLive();$('video').pause();};
+$('btnManualSubs').onclick=function(){var t=$('manualText').value.trim();if(!t)return;S.transcript=t;S.subs=OSU.transcribe.wordsToSegments(t,+$('trimStart').value,+$('trimEnd').value);renderSubs();$('transcStatus').textContent='Subtítulos creados desde texto manual (tiempos aproximados).';};
+$('subTable').addEventListener('input',function(e){var i=e.target.dataset.i;if(i!=null)S.subs[+i].text=e.target.value;});
+$('subTable').addEventListener('click',function(e){var i=e.target.dataset.del;if(i!=null){S.subs.splice(+i,1);renderSubs();}});
+$('btnSRT').onclick=function(){OSU.srt.download('subtitulos.srt',OSU.srt.toSRT(S.subs));};
+$('btnVTT').onclick=function(){OSU.srt.download('subtitulos.vtt',OSU.srt.toVTT(S.subs),'text/vtt');};
+function loadVoices(){var sel=$('voiceSel');sel.innerHTML=OSU.tts.voices('es').map(function(v){return '<option value="'+v.voiceURI+'">'+v.name+' ('+v.lang+')</option>';}).join('')||'<option value="">Sin voces en español instaladas</option>';}
+if('speechSynthesis' in window){loadVoices();speechSynthesis.onvoiceschanged=loadVoices;}
+$('btnSpeak').onclick=function(){var t=$('dubText').value.trim();if(!t){alert('Escribe el texto a doblar.');return;}OSU.tts.speak(t,{lang:'es-ES',voiceURI:$('voiceSel').value,rate:+$('dubRate').value,pitch:+$('dubPitch').value});};
+$('btnTranslate').onclick=function(){var t=$('dubText').value.trim();if(!t)return;if(!OSU.translate.supported()){$('transNote').textContent='Este navegador no trae traductor integrado. Pega la traducción a mano en el cuadro.';return;}OSU.translate.translate(t,$('transFrom').value,'es').then(function(out){$('dubText').value=out;$('transNote').textContent='Traducido con el traductor del navegador.';}).catch(function(e){$('transNote').textContent='No se pudo traducir: '+e.message;});};
+$('btnStudio').onclick=function(){var txt=S.transcript||$('manualText').value;if(!txt){alert('Primero transcribe o pega texto.');return;}var titles=OSU.youtube.titles(txt);$('titleList').innerHTML=titles.map(function(t){return '<li>'+t+'</li>';}).join('');$('descOut').value=OSU.youtube.description(txt,titles[0]);$('hashOut').innerHTML=OSU.youtube.hashtags(txt).map(function(h){return '<span class="badge">'+h+'</span>';}).join(' ');$('chaptersOut').textContent=OSU.youtube.chapters(S.scenes.length?S.scenes:[0]).join('\n');};
+$('btnThumb').onclick=function(){var v=$('video'),c=$('thumbCanvas'),ctx=c.getContext('2d');if(v.src){ctx.drawImage(v,0,0,1280,720);}else{ctx.fillStyle='#000';ctx.fillRect(0,0,1280,720);}ctx.fillStyle='#00ff88';ctx.font='bold 72px Arial';ctx.textAlign='center';ctx.fillText(($('titleList').firstChild?$('titleList').firstChild.textContent:'OPENSHORTS ULTRA').slice(0,40),640,380);var a=document.createElement('a');a.href=c.toDataURL('image/png');a.download='miniatura.png';a.click();};
+$('btnUGC').onclick=function(){var s=OSU.ugc.script($('ugcProduct').value,$('ugcBenefit').value,$('ugcAudience').value);$('ugcOut').textContent='HOOK: '+s.hook+'\n\nPROBLEMA: '+s.problem+'\n\nSOLUCIÓN: '+s.solution+'\n\nCTA: '+s.cta;window._ugcNarration=s.narration;};
+$('btnUGCNarrate').onclick=function(){if(window._ugcNarration)OSU.tts.speak(window._ugcNarration,{lang:'es-ES'});};
+$('btnSaveProject').onclick=function(){if(!S.fileName){alert('Importa un vídeo primero.');return;}var p={id:'p'+Date.now(),name:S.fileName,createdAt:Date.now(),duration:S.duration,scenes:S.scenes,clips:S.clips,subs:S.subs,transcript:S.transcript,settings:state()};var save=function(){OSU.storage.saveProject(p).then(function(){alert('Proyecto guardado (sin el vídeo si es muy grande).');refreshProjects();}).catch(function(e){alert('No se pudo guardar: '+e.message);});};if(S.file&&S.file.size<150*1048576){var r=new FileReader();r.onload=function(){p.videoBlob=r.result;save();};r.readAsArrayBuffer(S.file);}else save();};
+function refreshProjects(){OSU.storage.listProjects().then(function(list){$('projectList').innerHTML=list.length?list.map(function(p){return '<div class="clip"><b>'+p.name+'</b> — '+new Date(p.updatedAt).toLocaleString('es')+' — '+(p.clips||[]).length+' clips <button data-load="'+p.id+'">Cargar</button> <button class="danger" data-delp="'+p.id+'">Borrar</button></div>';}).join(''):'<p>Sin proyectos guardados.</p>';document.querySelectorAll('[data-delp]').forEach(function(b){b.onclick=function(){OSU.storage.deleteProject(b.dataset.delp).then(refreshProjects);};});document.querySelectorAll('[data-load]').forEach(function(b){b.onclick=function(){OSU.storage.getProject(b.dataset.load).then(function(p){if(!p)return;S.scenes=p.scenes||[];S.clips=p.clips||[];S.subs=p.subs||[];S.transcript=p.transcript||'';renderSubs();alert('Proyecto cargado: '+p.name+'. Reimporta el vídeo si no se guardó el archivo.');});};});}).catch(function(){ $('projectList').textContent='IndexedDB no disponible en este navegador.';});}
+$('btnRefreshProjects').onclick=refreshProjects;
+$('btnSaveSettings').onclick=function(){S.settings={uiLang:$('uiLang').value,sceneThreshold:+$('sceneThreshold').value,llmUrl:$('llmUrl').value,elevenKey:$('elevenKey').value,falKey:$('falKey').value};OSU.storage.saveSettings(S.settings);$('settingsMsg').textContent='Configuración guardada en este dispositivo.';};
+(function initSettings(){var s=S.settings||{};if(s.uiLang)$('uiLang').value=s.uiLang;if(s.sceneThreshold)$('sceneThreshold').value=s.sceneThreshold;if(s.llmUrl)$('llmUrl').value=s.llmUrl;if(s.elevenKey)$('elevenKey').value=s.elevenKey;if(s.falKey)$('falKey').value=s.falKey;refreshProjects();})();
+if('serviceWorker' in navigator&&location.protocol.startsWith('http')){navigator.serviceWorker.register('sw.js').catch(function(){});}
+document.getElementById('netBadge').textContent=navigator.onLine?'EN LÍNEA':'OFFLINE';
+window.addEventListener('online',function(){document.getElementById('netBadge').textContent='EN LÍNEA';});
+window.addEventListener('offline',function(){document.getElementById('netBadge').textContent='OFFLINE';});
+</script></body></html>
