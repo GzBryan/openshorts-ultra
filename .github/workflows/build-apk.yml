@@ -1,0 +1,54 @@
+name: Build APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Copy web app into Android assets
+        run: |
+          mkdir -p android/app/src/main/assets/web
+          cp -r frontend/* android/app/src/main/assets/web/
+          mkdir -p android/app/src/main/assets
+          cp -r storage engine ai export android/app/src/main/assets/
+          ls android/app/src/main/assets/web
+
+      - name: Generate launcher icons
+        run: |
+          python3 -c "
+          from PIL import Image
+          for d, s in [('mdpi',48),('hdpi',72),('xhdpi',96),('xxhdpi',144),('xxxhdpi',192)]:
+              import os
+              os.makedirs(f'android/app/src/main/res/mipmap-{d}', exist_ok=True)
+              Image.new('RGB', (s,s), (0,255,65)).save(f'android/app/src/main/res/mipmap-{d}/ic_launcher.png')
+          "
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Set up Gradle 8.7
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: "8.7"
+
+      - name: Build debug APK
+        working-directory: android
+        run: gradle assembleDebug --stacktrace
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk
